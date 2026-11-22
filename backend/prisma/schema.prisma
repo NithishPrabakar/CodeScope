@@ -1,0 +1,53 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Repository {
+  id              String            @id // Matches repoId (UUID)
+  name            String
+  originalName    String?
+  fileCount       Int               @default(0)
+  directoryCount  Int               @default(0)
+  totalSize       Int               @default(0)
+  storagePath     String            // Relative or absolute storage directory
+  fileTreeJson    Json?             // Serialized FileNode hierarchy
+  dependencyStats Json?             // Cached dependency metadata
+  status          String            @default("ready") // ready, processing, error
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  analyses        AnalysisHistory[]
+
+  @@index([createdAt])
+  @@map("repositories")
+}
+
+model AnalysisHistory {
+  id                  String     @id @default(uuid())
+  repoId              String
+  targetFile          String
+  analyzedAt          DateTime   @default(now())
+  riskScore           Int        @default(0)
+  riskLevel           String     @default("low") // low, medium, high, critical
+  directImpactCount   Int        @default(0)
+  indirectImpactCount Int        @default(0)
+  totalAffectedFiles  Int        @default(0)
+  maxDepth            Int        @default(0)
+  hasCycleInPath      Boolean    @default(false)
+  riskFactors         Json?      // Factor breakdown points & formula details
+  directImpactFiles   Json?      // Array of direct impacted file paths
+  indirectImpactFiles Json?      // Array of indirect impacted file paths
+  affectedFiles       Json?      // Full array of impacted files
+  impactChains        Json?      // Dependency traversal paths / chains
+  testRecommendations Json?      // Recommended test files with priority
+  repository          Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId])
+  @@index([targetFile])
+  @@index([analyzedAt])
+  @@map("analysis_history")
+}
